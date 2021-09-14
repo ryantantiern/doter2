@@ -1,21 +1,25 @@
-import attr
 from abc import abstractmethod
-from typing import List, Generic, TypeVar, Callable, Any, Optional
+from typing import List, Generic, TypeVar, Type
+import attr
 
 S = TypeVar("S")
 T = TypeVar("T")
 R = TypeVar("R")
 
+
 @attr.s(auto_attribs=True)
 class Step(Generic[S, T]):
     """A computational where input is S and output is T"""
-    pass
+    in_: Type[S]
+    out_: Type[T]
+
 
 @attr.s(auto_attribs=True)
 class Sequence(Step[S, T]):
     """A sequence of Steps where input of first Step is S and
        output of last Step is T"""
     steps: List[Step]
+
 
 @attr.s(auto_attribs=True)
 class Loop(Step[S, T]):
@@ -32,18 +36,22 @@ class Loop(Step[S, T]):
     def update(self, arguments: (S, T)) -> S:
         raise NotImplementedError
 
+
 @attr.s(auto_attribs=True)
 class Persist(Step[S, S]):
     """A computation that persists S"""
     pass
 
+
 @attr.s(auto_attribs=True)
-class Request(R, Step[S, T]):
+class Request(Step[S, T]):
     """Represents a request to perform some computation that expects a response R. R projected as the expected output
        T using `projection`"""
+
     @abstractmethod
-    def projection(self, response: R) -> T:
+    def project(self, response: R, **kwargs) -> T:
         raise NotImplementedError
+
 
 @attr.s(auto_attribs=True)
 class Chunk(Loop[S, T]):
@@ -53,4 +61,3 @@ class Chunk(Loop[S, T]):
     @abstractmethod
     def is_empty(self, state: S) -> bool:
         raise NotImplementedError
-
