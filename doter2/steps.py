@@ -32,31 +32,12 @@ class ParseMatchRequest(Request[MatchQueryResult, MatchQueryResultRow]):
 
 
 @attr.s(auto_attribs=True)
-class FetchMatchRequest(Request[MatchQueryResultRow, Match]):
+class FetchMatchRequest(Request[MatchQueryResultRow, str]):
     in_: Type = MatchQueryResultRow
-    out_: Type = Match
+    out_: Type = str
 
-    def project(self, response: Dict, **kwargs) -> Match:
-        def deserialize_chatwheel(d: Dict) -> ChatWheel:
-            return ChatWheel(key=int(d["key"]), slot=d["slot"], time=d["time"], player_id=d["player_slot"])
-
-        chat = response["chat"]
-        chat_wheels = [deserialize_chatwheel(c) for c in chat if c["type"] == "chatwheel"]
-        players = response["players"]
-        radiant_players = [p["player_slot"] for p in players if p["player_slot"] <= 127]
-        dire_players = [p["player_slot"] for p in players if p["player_slot"] >= 128]
-        return Match(
-            id=response["match_id"],
-            radiant_player_slots=radiant_players,
-            dire_player_slots=dire_players,
-            start_time=response["start_time"],
-            duration_seconds=response["duration"],
-            chats=chat_wheels,
-            avg_mmr=kwargs["row"].avg_mmr,
-            game_mode=response["game_mode"],
-            lobby_type=response["lobby_type"],
-            radiant_win=response["radiant_win"]
-        )
+    def project(self, response: Dict, **kwargs) -> str:
+        raise NotImplemented
 
 
 @attr.s(auto_attribs=True)
@@ -77,7 +58,7 @@ class ParseAndFetchMatches(Chunk[MatchQueryResult, None]):
     sequence = Sequence(
         in_=MatchQueryResult,
         out_=Match,
-        steps=[ParseMatchRequest(), FetchMatchRequest(), NamedLocalPersist(name="matches", in_=Match)]
+        steps=[ParseMatchRequest(), FetchMatchRequest(), NamedLocalPersist(name="matches", in_=str)]
     )
 
     def condition(self, state: MatchQueryResult) -> bool:

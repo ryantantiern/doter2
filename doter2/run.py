@@ -4,7 +4,7 @@ from doter2.interpreter import LocalWorkflowInterpreter
 from doter2.steps import *
 from doter2.adts.steps import Step
 
-DATA_DIR = Path("C:\\workspace\\doter2\\data")
+DATA_DIR = Path("C:\\workspace\\doter2")
 
 
 def output_type(step: Step): return step.out_
@@ -24,7 +24,7 @@ def run():
                    lobby_type=7,
                    game_mode=22,
                    days_lag=10,
-                   desired_num_of_results=20)
+                   desired_num_of_results=1)
     workflow = create_workflow(1)
     local_interpreter = LocalWorkflowInterpreter(save_to=DATA_DIR, run=None).build(workflow)
     local_interpreter.run(fetch_matches_query)

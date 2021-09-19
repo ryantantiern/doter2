@@ -2,7 +2,7 @@ import json
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional, List, TypeVar
+from typing import Callable, List, TypeVar
 
 import attr
 from requests import Request as RRequest, Response, Session
@@ -19,13 +19,18 @@ SENT_REQUESTS = []
 SESSION = Session()
 SESSION.headers.update({"Connection": "keep-alive", "Accept-Encoding": "gzip, deflate, br", "Accept": "*/*", "User-Agent": "PostmanRuntime/7.28.4"})
 
-def validate_is_dir(a, b, p: Path):
-    raise BaseException("Expected directory, found " + str(p)) if not p.is_dir() else None
+
+def validate_is_dir(p: Path):
+    if not p.is_dir():
+        raise ValueError("Expected directory, found " + str(p))
 
 
 @attr.s(auto_attribs=True, frozen=True)
 class LocalWorkflowInterpreter(WorkflowInterpreter[MatchQuery, None]):
     save_to: Path
+
+    def __attrs_post_init__(self):
+        validate_is_dir(self.save_to)
 
     def request_interpreter(self, req: Request[S, T]) -> StepInterpreter[Request[S, T]]:
         if isinstance(req, ExplorerRequest):
@@ -132,11 +137,12 @@ class FetchMatchRequestInterpreter(OpenDotaRequestInterpreter):
     method = "get"
     url = "/matches/{}"
 
-    def build_callable(self) -> Callable[[MatchQueryResultRow], Match]:
+    def build_callable(self) -> Callable[[MatchQueryResultRow], str]:
         def f(s: MatchQueryResultRow) -> Match:
             req = RRequest(method=self.method, url=self.url_from(self.url, [str(s.match_id)]))
-            data = self.send(req).json()
-            return self.step.project(data, row=s)
+            # data = self.send(req).json()
+            data = self.send(req).text
+            return data
 
         return f
 
@@ -148,7 +154,12 @@ class LocalPersistInterpreter(StepInterpreter[NamedLocalPersist[S]]):
 
     def build_callable(self) -> Callable[[S], S]:
         def f(s: S) -> S:
-            json_line = json.dumps(attr.asdict(s)) + "\n"
+            separators = (',', ':')
+            if attr.has(s):
+                json_line = json.dumps(attr.asdict(s), separators=separators)
+            else:
+                json_line = s
+            json_line = json_line + "\n"
             file = self.dir / Path(self.step.name)
             with open(file, "a") as fp:
                 print("writing to " + str(file))
